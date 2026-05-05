@@ -14,98 +14,76 @@ Author: Ashish Dange
 */
 #include <iostream>
 #include <string>
-#include <algorithm>
+#include <algorithm> // For std::max
 
 using namespace std;
 
-// Using a struct for the dictionary entry
-struct Word {
-  string key;
-  string meaning;
-};
-
-// Node structure for the AVL tree
 struct Node {
-  Word data;
-  Node *left, *right;
-  int height;
+  string key, meaning;
+  Node *left = nullptr, *right = nullptr;
+  int ht = 1;
 
-  Node(Word w) : data(w), left(nullptr), right(nullptr), height(1) {}
+  Node(string k, string m) : key(k), meaning(m) {}
 };
 
 class AVLDictionary {
   private:
-    Node* root;
-    int getHeight(Node* n) {
-      return n ? n->height : 0;
-    }
-    int getBalance(Node* n) {
-      return n ? getHeight(n->left) - getHeight(n->right) : 0;
-    }
+    Node* root = nullptr;
+
+    int ht(Node* n) { return n ? n->ht : 0; }
+    int bal(Node* n) { return n ? ht(n->left) - ht(n->right) : 0; }
+
     Node* rotateRight(Node* y) {
       Node* x = y->left;
-      Node* T2 = x->right;
+      y->left = x->right;
       x->right = y;
-      y->left = T2;
-      y->height = max(getHeight(y->left), getHeight(y->right)) + 1;
-      x->height = max(getHeight(x->left), getHeight(x->right)) + 1;
+
+      y->ht = max(ht(y->left), ht(y->right)) + 1;
+      x->ht = max(ht(x->left), ht(x->right)) + 1;
       return x;
     }
+
     Node* rotateLeft(Node* x) {
       Node* y = x->right;
-      Node* T2 = y->left;
+      x->right = y->left;
       y->left = x;
-      x->right = T2;
-      x->height = max(getHeight(x->left), getHeight(x->right)) + 1;
-      y->height = max(getHeight(y->left), getHeight(y->right)) + 1;
+
+      x->ht = max(ht(x->left), ht(x->right)) + 1;
+      y->ht = max(ht(y->left), ht(y->right)) + 1;
       return y;
     }
-    Node* insertNode(Node* node, Word w) {
-      if (!node) return new Node(w);
-      if (w.key < node->data.key)
-        node->left = insertNode(node->left, w);
-      else if (w.key > node->data.key)
-        node->right = insertNode(node->right, w);
-      else 
-        return node; // Duplicate keys not allowed
-      node->height = 1 + max(getHeight(node->left), getHeight(node->right));
-      int balance = getBalance(node);
-      // LL Case
-      if (balance > 1 && w.key < node->left->data.key)
-        return rotateRight(node);
 
-      // RR Case
-      if (balance < -1 && w.key > node->right->data.key)
-        return rotateLeft(node);
+    Node* insertNode(Node* n, string k, string m) {
+      if (!n) return new Node(k, m);
+      if (k < n->key) n->left = insertNode(n->left, k, m);
+      else if (k > n->key) n->right = insertNode(n->right, k, m);
+      else return n; // No duplicates
+      n->ht = 1 + max(ht(n->left), ht(n->right));
+      int b = bal(n);
 
-      // LR Case
-      if (balance > 1 && w.key > node->left->data.key) {
-        node->left = rotateLeft(node->left);
-        return rotateRight(node);
+      if (b > 1 && k < n->left->key) return rotateRight(n);           // LL Case
+      if (b < -1 && k > n->right->key) return rotateLeft(n);          // RR Case
+
+      if (b > 1 && k > n->left->key) {                                // LR Case
+        n->left = rotateLeft(n->left);
+        return rotateRight(n);
       }
-
-      // RL Case
-      if (balance < -1 && w.key < node->right->data.key) {
-        node->right = rotateRight(node->right);
-        return rotateLeft(node);
+      if (b < -1 && k < n->right->key) {                              // RL Case
+        n->right = rotateRight(n->right);
+        return rotateLeft(n);
       }
-      return node;
+      return n;
     }
 
-    void display(Node* root) {
-      if (root) {
-        display(root->left);
-        cout << "Keyword: " << root->data.key << " | Meaning: " << root->data.meaning << endl;
-        display(root->right);
-      }
+    void display(Node* n) {
+      if (!n) return;
+      display(n->left);
+      cout << n->key << " : " << n->meaning << endl;
+      display(n->right);
     }
 
   public:
-    AVLDictionary() : root(nullptr) {}
-
-    void add(string k, string m) {
-      root = insertNode(root, {k, m});
-    }
+    void add(string k, string m) { root = insertNode(root, k, m); }
 
     void showAll() {
       if (!root) cout << "Dictionary is empty.\n";
@@ -121,7 +99,7 @@ int main() {
   do {
     cout << "\n--- AVL Dictionary ---\n1. Add Word\n2. Display All\n3. Exit\nChoice: ";
     cin >> choice;
-    cin.ignore(); // Clear newline
+    cin.ignore();
 
     if (choice == 1) {
       cout << "Enter Keyword: "; getline(cin, k);
