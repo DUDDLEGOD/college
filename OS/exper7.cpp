@@ -1,87 +1,114 @@
 #include <iostream>
-#include <vector>
-#include <queue>
-#include <unordered_set>
-#include <algorithm>
 
 using namespace std;
 
-// Helper to print standard metrics cleanly
-void printMetrics(string name, int faults, int hits) {
-    int total = faults + hits;
-    cout << "\n--- " << name << " ---\n";
-    cout << "Total Pages: " << total << "\n";
-    cout << "Page Faults: " << faults << "\n";
-    cout << "Page Hits  : " << hits << "\n";
-    cout << "Hit Ratio  : " << (float)hits / total * 100 << "%\n";
-}
+// 1. FIFO (The Modulo Hack)
+void fifo(int pages[], int n, int frames) {
+    int mem[10]; 
+    for(int i = 0; i < frames; i++) mem[i] = -1; // -1 means empty
+    
+    int pointer = 0, faults = 0;
 
-// 1. First-In, First-Out (FIFO)
-void fifo(const vector<int>& pages, int frames) {
-    unordered_set<int> memory; // Fast lookup for hits
-    queue<int> arrival_order;  // Tracks who arrived first
-    int faults = 0, hits = 0;
-
-    for (int p : pages) {
-        // HIT: Page is already in memory
-        if (memory.count(p)) {
-            hits++;
-        } 
-        // FAULT: Page not in memory
-        else {
+    for (int i = 0; i < n; i++) {
+        bool hit = false;
+        for (int j = 0; j < frames; j++) {
+            if (mem[j] == pages[i]) hit = true;
+        }
+        
+        if (!hit) { // FAULT
+            mem[pointer] = pages[i];              // Overwrite oldest
+            pointer = (pointer + 1) % frames;     // Move pointer forward (loops back to 0)
             faults++;
-            // If memory is full, remove the oldest page
-            if (memory.size() == frames) {
-                int victim = arrival_order.front();
-                arrival_order.pop();
-                memory.erase(victim);
-            }
-            // Bring new page into memory
-            memory.insert(p);
-            arrival_order.push(p);
         }
     }
-    printMetrics("FIFO", faults, hits);
+    cout << "FIFO Faults:    " << faults << "\n";
 }
 
-// 2. Least Recently Used (LRU)
-void lru(const vector<int>& pages, int frames) {
-    vector<int> memory; // Back = newest, Front = oldest
-    int faults = 0, hits = 0;
+// 2. LRU (The Timer Hack)
+void lru(int pages[], int n, int frames) {
+    int mem[10], time[10] = {0}; 
+    for(int i = 0; i < frames; i++) mem[i] = -1;
+    
+    int faults = 0, clock = 0;
 
-    for (int p : pages) {
-        auto it = find(memory.begin(), memory.end(), p);
-
-        // HIT: Page found
-        if (it != memory.end()) {
-            hits++;
-            // Remove it from current spot and put it at the back (most recently used)
-            memory.erase(it);
-            memory.push_back(p);
-        } 
-        // FAULT: Page not found
-        else {
-            faults++;
-            // If full, remove the front element (least recently used)
-            if (memory.size() == frames) {
-                memory.erase(memory.begin());
+    for (int i = 0; i < n; i++) {
+        clock++;
+        bool hit = false;
+        
+        for (int j = 0; j < frames; j++) {
+            if (mem[j] == pages[i]) { 
+                hit = true; 
+                time[j] = clock; // HIT: Update its timestamp
             }
-            // Add new page to the back
-            memory.push_back(p);
+        }
+        
+        if (!hit) { // FAULT
+            int victim = 0;
+            // Find the frame with the smallest time (oldest)
+            for (int j = 1; j < frames; j++) {
+                if (time[j] < time[victim]) victim = j;
+            }
+            mem[victim] = pages[i]; // Overwrite victim
+            time[victim] = clock;   // Set new timestamp
+            faults++;
         }
     }
-    printMetrics("LRU", faults, hits);
+    cout << "LRU Faults:     " << faults << "\n";
+}
+
+// 3. OPTIMAL (The Forward-Look Hack)
+void optimal(int pages[], int n, int frames) {
+    int mem[10];
+    for(int i = 0; i < frames; i++) mem[i] = -1;
+    
+    int faults = 0;
+
+    for (int i = 0; i < n; i++) {
+        bool hit = false;
+        for (int j = 0; j < frames; j++) {
+            if (mem[j] == pages[i]) hit = true;
+        }
+        
+        if (!hit) { // FAULT
+            int victim = 0, farthest = -1;
+            
+            // Check each frame in memory to see when it is used next
+            for (int j = 0; j < frames; j++) {
+                int next_use = 9999; // Assume infinity (never used again)
+                
+                // Look forward in the pages array
+                for (int k = i + 1; k < n; k++) {
+                    if (mem[j] == pages[k]) { 
+                        next_use = k; 
+                        break; 
+                    }
+                }
+                
+                // Track the one that is used farthest in the future
+                if (next_use > farthest) {
+                    farthest = next_use;
+                    victim = j;
+                }
+            }
+            mem[victim] = pages[i]; // Overwrite victim
+            faults++;
+        }
+    }
+    cout << "Optimal Faults: " << faults << "\n";
 }
 
 int main() {
     // Standard textbook reference string
-    vector<int> pages = {7, 0, 1, 2, 0, 3, 0, 4, 2, 3, 0, 3, 2, 1, 2, 0, 1, 7, 0, 1};
-    int frames = 3; // Number of memory slots available
+    int pages[] = {7, 0, 1, 2, 0, 3, 0, 4, 2, 3, 0, 3, 2, 1, 2};
+    int n = sizeof(pages) / sizeof(pages[0]); // Automatically calculates array length
+    int frames = 3;
 
-    cout << "Simulating with " << frames << " memory frames...\n";
+    cout << "Simulating Page Replacement with " << frames << " frames...\n";
+    cout << "------------------------------------------\n";
 
-    fifo(pages, frames);
-    lru(pages, frames);
+    fifo(pages, n, frames);
+    lru(pages, n, frames);
+    optimal(pages, n, frames);
 
     return 0;
 }

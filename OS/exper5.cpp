@@ -114,3 +114,48 @@ int main() {
 
     return 0;
 }
+
+
+/*Simple version*/
+/*
+#include <iostream>
+
+using namespace std;
+
+int main() {
+    // 1. The Setup (Hardcoded to save writing)
+    int alloc[5][3] = {{0,1,0}, {2,0,0}, {3,0,2}, {2,1,1}, {0,0,2}};
+    int max[5][3]   = {{7,5,3}, {3,2,2}, {9,0,2}, {2,2,2}, {4,3,3}};
+    int avail[3]    = {3, 3, 2};
+    bool finish[5]  = {false}; // Tracks who is done
+
+    cout << "Safe Sequence: ";
+
+    // 2. The Logic (Just 3 nested loops)
+    for (int k = 0; k < 5; k++) {         // K-loop ensures we do enough passes to check everyone
+        for (int i = 0; i < 5; i++) {     // I-loop checks each process
+            
+            if (!finish[i]) {
+                bool can_run = true;
+                
+                // J-loop checks if Need (Max - Alloc) <= Available for all resources
+                for (int j = 0; j < 3; j++) {
+                    if (max[i][j] - alloc[i][j] > avail[j]) {
+                        can_run = false; 
+                        break;
+                    }
+                }
+
+                // If it can run, mark as finished and give resources back to 'avail'
+                if (can_run) {
+                    for (int j = 0; j < 3; j++) avail[j] += alloc[i][j];
+                    finish[i] = true;
+                    cout << "P" << i << " ";
+                }
+            }
+        }
+    }
+    
+    return 0;
+}
+*/
